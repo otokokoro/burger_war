@@ -1,0 +1,89 @@
+<include file="$(find burger_navigation)/launch/your_burger_navigation_sample.launch">
+        <arg name="robot_name" value="$(arg robot_name)" />
+    </include>
+    
+    roslaunch burger_navigation multi_robot_navigation_run.launch
+
+    def curve(self,laser,direction):
+        watch=90
+        brakeweight=2
+        curveweight=1.5
+        safeangle=15
+        saferange=0.3
+        distance=0.6
+        vel=Twist()
+        
+        if(direction):
+            #print(laser>saferange)
+            rangle=np.argmax(laser>distance)
+            langle=np.argmax(laser[::-1]>distance)
+            print(rangle,langle)
+            if(np.any(laser[rangle:rangle+safeangle]<saferange)):
+                rangle=90
+            if(np.any(laser[langle-safeangle:langle]<saferange)):
+                langle=90
+        else:
+            rangle=180-np.argmix(laser[0:180]>saferange)
+            langle=np.argman(laser[180:360]>saferange)-180
+            if(np.any(laser[rangle-safeangle:rangle]<saferange)):
+                rangle=90
+            if(np.any(laser[langle:langle+safeangle]<saferange)):
+                langle=90
+
+        aimangle= -rangle if rangle>langle else langle
+
+        print(aimangle)
+        
+        obs_f = min(self.range[0:10].min(), self.range[350:359].min())
+        obs_b = self.range[170:190].min()
+        print(obs_f)
+        if(direction):
+            vel.linear.x=0.1*obs_f*brakeweight
+            vel.angular.z=aimangle/180
+            self.vel_pub.publish(vel)
+        else:
+            vel.linear.x=-0.1*obs_b*brakeweight
+            vel.angular.z=aimangle/180
+            self.vel_pub.publish(vel)
+
+
+    def avoidobstacle(self, nextmode):
+        emp = 27
+        rg = 80
+        STATUS.d_range[0:emp] = STATUS.d_range[0:emp]*10
+        STATUS.d_range[-emp:360] = STATUS.d_range[-emp:360]*10
+        STATUS.d_range[180-emp:180+emp] = STATUS.d_range[180-emp:180+emp]*10
+        if(STATUS.flg_direction):
+            target = 180 if np.mean(STATUS.d_range[0:rg]) > np.mean(
+                STATUS.d_range[-rg:360]) else -180
+        else:
+            target = -180 if (np.mean(STATUS.d_range[180-rg:180]) >
+                             np.mean(STATUS.d_range[180:180+rg])) else 180
+        STATUS.flg_strotate = True
+        self.rotation(target, nextmode)
+
+
+
+    def avoidobstacle(self, nextmode):
+        safe=np.where(STATUS.d_range>0.4)[0]
+        if(len(safe)>1):
+            if(STATUS.flg_direction):
+                target =180 if(safe[0]<360-safe[-1]) else -180
+            else:
+                l=STATUS.d_range[0:180:-1]
+                lsafe=np.where(l>0.4)[0]
+                r=STATUS.d_range[180:360]
+                rsafe=np.where(r>0.4)[0]
+                if(len(rsafe)>0 and len(lsafe)>0):
+                   target = 180 if rsafe[0]<lsafe[0] else -180
+                elif(len(rsafe)==0):
+                    target = -180
+                else:
+                    target = 180 
+                
+        else:
+            target = 180
+        STATUS.flg_strotate = True
+        if(STATUS.mode==M.ESCAPE):
+            target*=0.25
+        self.rotation(target, nextmode)  

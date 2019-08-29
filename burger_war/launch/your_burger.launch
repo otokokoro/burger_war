@@ -3,12 +3,11 @@
   <arg name="robot_name" default=""/>
     <!-- You can change control program  -->
 
-
+    <node pkg="burger_war" type="denki2.py" name="test" output="screen"/>
 
 
     <!-- sample program node -->
 
-    <node pkg="burger_war" type="randomRun.py" name="randomRun" output="screen"/>
 
     <!-- END sample program node -->
 
